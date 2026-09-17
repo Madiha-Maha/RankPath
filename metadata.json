@@ -1,0 +1,7 @@
+{
+  "name": "RankPath",
+  "description": "Admission counselling intelligence platform for JoSAA (IITs, NITs, IIITs, GFTIs) with statistical rank prediction, choice list optimization, and round-by-round simulation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+

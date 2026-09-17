@@ -1,0 +1,158 @@
+// Prisma Schema for RankPath — Admission Counselling Intelligence Platform
+// Heavily normalized schema supporting JoSAA Phase 1 with forward compatibility for State Boards & NEET/MCC
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum InstituteType {
+  IIT
+  NIT
+  IIIT
+  GFTI
+  STATE_GOVT
+  MEDICAL
+}
+
+enum Quota {
+  AI  // All India
+  HS  // Home State
+  OS  // Other State
+  GO  // Goa / Special Quota
+}
+
+enum Category {
+  OPEN
+  GEN_EWS
+  OBC_NCL
+  SC
+  ST
+  OPEN_PWD
+  OBC_PWD
+}
+
+enum Gender {
+  GENDER_NEUTRAL
+  FEMALE_ONLY
+}
+
+enum ExamType {
+  JEE_ADVANCED
+  JEE_MAIN
+  NEET
+  STATE_CET
+}
+
+model Institute {
+  id              String         @id @default(cuid())
+  code            String         @unique // e.g. IITB, NITT
+  name            String
+  shortName       String
+  type            InstituteType
+  city            String
+  state           String
+  nirfRank        Int?
+  tier            Int            @default(1)
+  establishedYear Int
+  websiteUrl      String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  cutoffRecords   CutoffRecord[]
+  choiceItems     ChoiceItem[]
+
+  @@index([type, state])
+}
+
+model Branch {
+  id            String         @id @default(cuid())
+  code          String         @unique // e.g. CS, AI-DS, ECE
+  name          String
+  groupCode     String         // e.g. CSE, ECE, ME
+  degree        String         // e.g. B.Tech, B.S.
+  durationYears Int            @default(4)
+  createdAt     DateTime       @default(now())
+
+  cutoffRecords CutoffRecord[]
+  choiceItems   ChoiceItem[]
+
+  @@index([groupCode])
+}
+
+model CutoffRecord {
+  id              String      @id @default(cuid())
+  instituteId     String
+  branchId        String
+  examType        ExamType    @default(JEE_MAIN)
+  quota           Quota
+  category        Category
+  gender          Gender
+  counsellingYear Int
+  counsellingRound Int        @default(6) // Round 1-6
+  openingRank     Int
+  closingRank     Int
+  totalSeats      Int?
+  hasNewSeats     Boolean     @default(false)
+  createdAt       DateTime    @default(now())
+
+  institute       Institute   @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  branch          Branch      @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@unique([instituteId, branchId, quota, category, gender, counsellingYear, counsellingRound])
+  @@index([counsellingYear, counsellingRound])
+  @@index([closingRank])
+}
+
+model UserProfile {
+  id          String       @id @default(cuid())
+  email       String?      @unique
+  name        String?
+  exam        ExamType     @default(JEE_MAIN)
+  crlRank     Int
+  categoryRank Int?
+  category    Category     @default(OPEN)
+  gender      Gender       @default(GENDER_NEUTRAL)
+  homeState   String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  choiceLists ChoiceList[]
+}
+
+model ChoiceList {
+  id              String       @id @default(cuid())
+  userId          String
+  title           String       @default("My JoSAA Choice List")
+  isLocked        Boolean      @default(false)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  user            UserProfile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items           ChoiceItem[]
+}
+
+model ChoiceItem {
+  id               String      @id @default(cuid())
+  choiceListId     String
+  preferenceOrder  Int         // 1, 2, 3...
+  instituteId      String
+  branchId         String
+  quota            Quota       @default(AI)
+  category         Category    @default(OPEN)
+  predictedCutoff  Int
+  admissionProbability Float
+  notes            String?
+  createdAt        DateTime    @default(now())
+
+  choiceList       ChoiceList  @relation(fields: [choiceListId], references: [id], onDelete: Cascade)
+  institute        Institute   @relation(fields: [instituteId], references: [id])
+  branch           Branch      @relation(fields: [branchId], references: [id])
+
+  @@unique([choiceListId, preferenceOrder])
+  @@index([choiceListId])
+}
